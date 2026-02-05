@@ -1,6 +1,7 @@
 import Gio from 'gi://Gio';
 import { fontWeightOptions } from '../preferences/AppearancePage';
 import {
+    attentionStyleOptions,
     indicatorStyleOptions,
     positionOptions,
     scrollWheelDirectionOptions,
@@ -140,6 +141,21 @@ export class Settings {
     readonly overlayStylePreset = SettingsSubject.createStringSubject(
         this.behaviorSettings,
         'overlay-style-preset',
+    );
+    readonly attentionIndicatorEnabled = SettingsSubject.createBooleanSubject(
+        this.behaviorSettings,
+        'attention-indicator-enabled',
+    );
+    readonly attentionIndicatorStyle = SettingsSubject.createStringSubject<
+        keyof typeof attentionStyleOptions
+    >(this.behaviorSettings, 'attention-indicator-style');
+    readonly attentionAutoFocus = SettingsSubject.createBooleanSubject(
+        this.behaviorSettings,
+        'attention-auto-focus',
+    );
+    readonly attentionTestTrigger = SettingsSubject.createBooleanSubject(
+        this.behaviorSettings,
+        'attention-test-trigger',
     );
     readonly enableActivateWorkspaceShortcuts = SettingsSubject.createBooleanSubject(
         this.shortcutsSettings,
@@ -297,6 +313,22 @@ export class Settings {
     readonly overlayPaddingH = SettingsSubject.createIntSubject(
         this.appearanceSettings,
         'overlay-padding-h',
+    );
+    readonly attentionColor = SettingsSubject.createStringSubject(
+        this.appearanceSettings,
+        'attention-color',
+    );
+    readonly attentionAnimationDuration = SettingsSubject.createIntSubject(
+        this.appearanceSettings,
+        'attention-animation-duration',
+    );
+    readonly attentionPulseOpacity = SettingsSubject.createIntSubject(
+        this.appearanceSettings,
+        'attention-pulse-opacity',
+    );
+    readonly attentionFlashInterval = SettingsSubject.createIntSubject(
+        this.appearanceSettings,
+        'attention-flash-interval',
     );
     readonly applicationStyles = SettingsSubject.createStringSubject(
         this.appearanceSettings,
