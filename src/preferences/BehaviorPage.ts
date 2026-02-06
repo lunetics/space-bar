@@ -1,6 +1,18 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
-import { addCombo, addLinkButton, addSpinButton, addTextEntry, addToggle } from './common';
+import Gtk from 'gi://Gtk';
+import {
+    addColorButton,
+    addCombo,
+    addLinkButton,
+    addSpinButton,
+    addTextEntry,
+    addToggle,
+} from './common';
+import {
+    overlayStylePresetOptions,
+    connectOverlayPresetLogic,
+} from './overlayPresets';
 
 export const indicatorStyleOptions = {
     'current-workspace': 'Current workspace',
@@ -25,14 +37,29 @@ export const positionOptions = {
     right: 'Right',
 };
 
+export const overlayScreenOptions = {
+    primary: 'Primary screen',
+    all: 'All screens',
+};
+
+export const attentionStyleOptions = {
+    pulse: 'Gentle pulse',
+    'color-flash': 'Color flash',
+    ripple: 'Ripple',
+};
+
 export class BehaviorPage {
     window!: Adw.PreferencesWindow;
     readonly page = new Adw.PreferencesPage();
     private readonly _settings: Gio.Settings;
+    private readonly _appearanceSettings: Gio.Settings;
 
     constructor(extensionPreferences: any) {
         this._settings = extensionPreferences.getSettings(
             `org.gnome.shell.extensions.space-bar.behavior`,
+        );
+        this._appearanceSettings = extensionPreferences.getSettings(
+            `org.gnome.shell.extensions.space-bar.appearance`,
         );
     }
 
@@ -41,7 +68,9 @@ export class BehaviorPage {
         this.page.useUnderline = true;
         this.page.set_icon_name('preferences-system-symbolic');
         this._initGeneralGroup();
+        this._initOverlayGroup();
         this._initSmartWorkspaceNamesGroup();
+        this._initAttentionGroup();
     }
 
     private _initGeneralGroup(): void {
@@ -222,6 +251,87 @@ export class BehaviorPage {
         this.page.add(group);
     }
 
+    private _initOverlayGroup(): void {
+        const group = new Adw.PreferencesGroup();
+        group.set_title('Workspace Overlay');
+        group.set_description(
+            'Show a centered overlay when switching workspaces.',
+        );
+        addToggle({
+            settings: this._settings,
+            group,
+            key: 'overlay-enabled',
+            title: 'Enable workspace overlay',
+        }).addSubDialog({
+            window: this.window,
+            title: 'Workspace Overlay',
+            enableIf: {
+                key: 'overlay-enabled',
+                predicate: (value) => value.get_boolean(),
+                page: this.page,
+            },
+            populatePage: (page) => {
+                const group = new Adw.PreferencesGroup();
+                page.add(group);
+                addSpinButton({
+                    settings: this._settings,
+                    group,
+                    key: 'overlay-display-time',
+                    title: 'Display time (ms)',
+                    subtitle: 'How long the overlay is shown',
+                    lower: 100,
+                    upper: 5000,
+                    step: 100,
+                });
+                addToggle({
+                    settings: this._settings,
+                    group,
+                    key: 'overlay-show-workspace-name',
+                    title: 'Show workspace name',
+                    subtitle: 'Use workspace display name instead of just the number',
+                });
+                addCombo({
+                    window: this.window,
+                    settings: this._settings,
+                    group,
+                    key: 'overlay-screen',
+                    title: 'Show on',
+                    options: overlayScreenOptions,
+                });
+                addCombo({
+                    window: this.window,
+                    settings: this._settings,
+                    group,
+                    key: 'overlay-style-preset',
+                    title: 'Style',
+                    options: overlayStylePresetOptions,
+                });
+                const hintGroup = new Adw.PreferencesGroup();
+                page.add(hintGroup);
+                const hintRow = new Adw.ActionRow({
+                    title: 'Customize overlay appearance',
+                    subtitle: 'Adjust colors, font, padding, and more',
+                    activatable: true,
+                });
+                hintRow.add_suffix(new Gtk.Image({
+                    iconName: 'go-next-symbolic',
+                }));
+                hintRow.connect('activated', () => {
+                    const dialog = hintRow.get_root() as Gtk.Window;
+                    dialog.close();
+                    this.window.set_visible_page_name('appearance');
+                });
+                hintGroup.add(hintRow);
+                connectOverlayPresetLogic({
+                    behaviorSettings: this._settings,
+                    appearanceSettings: this._appearanceSettings,
+                    disconnectOn: page,
+                });
+            },
+        });
+        this.page.add(group);
+    }
+
     private _initSmartWorkspaceNamesGroup(): void {
         const group = new Adw.PreferencesGroup();
         group.set_title('Smart Workspace Names');
@@ -265,4 +375,97 @@ export class BehaviorPage {
         });
         this.page.add(group);
     }
+
+    private _initAttentionGroup(): void {
+        const group = new Adw.PreferencesGroup();
+        group.set_title('Workspace Attention Indicator');
+        group.set_description(
+            'Highlight workspace buttons when windows demand attention.',
+        );
+        addToggle({
+            settings: this._settings,
+            group,
+            key: 'attention-indicator-enabled',
+            title: 'Enable attention indicator',
+        }).addSubDialog({
+            window: this.window,
+            title: 'Attention Indicator',
+            enableIf: {
+                key: 'attention-indicator-enabled',
+                predicate: (value) => value.get_boolean(),
+                page: this.page,
+            },
+            populatePage: (page) => {
+                const group = new Adw.PreferencesGroup();
+                page.add(group);
+                addCombo({
+                    window: this.window,
+                    settings: this._settings,
+                    group,
+                    key: 'attention-indicator-style',
+                    title: 'Animation style',
+                    options: attentionStyleOptions,
+                });
+                addColorButton({
+                    settings: this._appearanceSettings,
+                    group,
+                    key: 'attention-color',
+                    title: 'Flash color',
+                    subtitle: 'Used by color flash animation',
+                    window: this.window,
+                });
+                addSpinButton({
+                    settings: this._appearanceSettings,
+                    group,
+                    key: 'attention-animation-duration',
+                    title: 'Animation duration (ms)',
+                    subtitle: 'Cycle duration for pulse animation',
+                    lower: 200,
+                    upper: 3000,
+                    step: 100,
+                });
+                addSpinButton({
+                    settings: this._appearanceSettings,
+                    group,
+                    key: 'attention-pulse-opacity',
+                    title: 'Pulse minimum opacity',
+                    subtitle: '0 (invisible) to 255 (fully opaque)',
+                    lower: 0,
+                    upper: 255,
+                    step: 5,
+                });
+                addSpinButton({
+                    settings: this._appearanceSettings,
+                    group,
+                    key: 'attention-flash-interval',
+                    title: 'Flash interval (ms)',
+                    subtitle: 'Toggle interval for color flash',
+                    lower: 200,
+                    upper: 3000,
+                    step: 100,
+                });
+                addToggle({
+                    settings: this._settings,
+                    group,
+                    key: 'attention-auto-focus',
+                    title: 'Auto-focus attention window',
+                    subtitle: 'Focus the demanding window when switching to its workspace',
+                });
+                const testRow = new Adw.ActionRow({
+                    title: 'Test animation',
+                    subtitle: 'Preview the animation on the workspaces bar',
+                    activatable: true,
+                });
+                testRow.add_suffix(
+                    new Gtk.Image({ iconName: 'media-playback-start-symbolic' }),
+                );
+                testRow.connect('activated', () => {
+                    this._settings.set_boolean('attention-test-trigger', true);
+                });
+                group.add(testRow);
+            },
+        });
+        this.page.add(group);
+    }
+
 }
